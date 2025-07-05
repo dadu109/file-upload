@@ -3,12 +3,19 @@ import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { prisma } from "../db";
 
+export interface JwtPayload {
+  userId: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}
+
 type JWTTokens = {
     accessToken: string;
     refreshToken: string;
 }
 
-const SECRET_KEY = process.env.JWT_SECRET
+export const JWT_SECRET_KEY = process.env.JWT_SECRET
 
 export const generateTokens = async (user: User): Promise<JWTTokens> => {
   const payload = {
@@ -18,7 +25,7 @@ export const generateTokens = async (user: User): Promise<JWTTokens> => {
     exp: Math.floor(Date.now() / 1000) + (15 * 60) // expires in 15 minutes
   }
   
-  const accessToken = jwt.sign(payload, SECRET_KEY!);
+  const accessToken = jwt.sign(payload, JWT_SECRET_KEY!);
   const refreshToken = crypto.randomBytes(32).toString('hex');
  
   await prisma.refreshToken.create({
@@ -33,15 +40,6 @@ export const generateTokens = async (user: User): Promise<JWTTokens> => {
     accessToken,
     refreshToken
   };
-}
-
-export const verifyAccessToken = ({accessToken}: {accessToken: string}): boolean => {
-  try {
-    jwt.verify(accessToken, SECRET_KEY!);
-    return true;
-  } catch (_) { // eslint-disable-line @typescript-eslint/no-unused-vars
-    return false;
-  }
 }
 
 export const verifyAndRegenerateRefreshToken = async ({

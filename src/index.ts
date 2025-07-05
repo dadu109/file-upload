@@ -2,6 +2,7 @@ import express from 'express';
 import { loginHandlers, signupHandlers } from './handlers/auth';
 import { requestLoggerMiddleware } from './middlewares/requestLogger';
 import './db'
+import { AuthenticatedRequest, authMiddleware } from './middlewares/authMiddleware';
 
 const HOST = process.env.HOST || 'localhost'
 const PORT = process.env.PORT || '3000'
@@ -16,9 +17,9 @@ app.use("/protected", protectedRouter)
 app.post('/signup', signupHandlers)
 app.post('/login', loginHandlers)
 
-protectedRouter.get('/', (req, res) => {
+protectedRouter.get('/user', authMiddleware, (req: AuthenticatedRequest, res) => {
   res.status(200).json({
-    siema1: 'test1'
+    email: req.user?.email
   })
 })
 
