@@ -42,18 +42,11 @@ export const generateTokens = async (user: User): Promise<JWTTokens> => {
   };
 }
 
-export const verifyAndRegenerateRefreshToken = async ({
-  refreshToken,
-  user
-}: {
-    refreshToken: string,
-    user: User
-}): Promise<JWTTokens | null> => {
+export const verifyAndRegenerateRefreshToken = async (refreshToken: string): Promise<JWTTokens | null> => {
   try {
     const tokenRecord = await prisma.refreshToken.findFirst({
       where: {
         token: refreshToken,
-        userId: user.id,
         expiresAt: {
           gt: new Date() // not expired
         }
@@ -64,7 +57,17 @@ export const verifyAndRegenerateRefreshToken = async ({
       return null;
     }
 
-    const newTokens = await generateTokens(user); 
+    const userRecord = await prisma.user.findUnique({
+      where: {
+        id: tokenRecord.userId
+      }
+    })
+
+    if(!userRecord) {
+      return null;
+    }
+
+    const newTokens = await generateTokens(userRecord); 
 
     await prisma.refreshToken.delete({
       where: {

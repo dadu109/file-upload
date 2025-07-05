@@ -40,6 +40,7 @@ export const authMiddleware: AuthenticatedRequestHandler = (req, res, next) => {
         error: 'Token verification failed' 
       });
     }
+    return;
   }
 
   req.user = decoded as JwtPayload;

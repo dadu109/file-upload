@@ -6,21 +6,25 @@ import { validateData } from '../middlewares/bodyValidationMiddleware';
 import { RequestHandlerWithBody } from '../types';
 import { tryCatch } from '../utils/tryCatch';
 import { StatusCodes } from 'http-status-codes';
-import { generateTokens } from '../services/jwt';
+import { generateTokens, verifyAndRegenerateRefreshToken } from '../services/jwt';
 
-export const userSignupBody = z.object({
+export const userSignupRequestBody = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
 
-export const userLoginBody = z.object({
+export const userLoginRequestBody = z.object({
   email: z.string().email(),
   password: z.string(),
 });
 
+export const refreshTokenRequestBody = z.object({
+  refreshToken: z.string(),
+})
+
 const SALT_ROUNDS = 12;
 
-const signupHandler: RequestHandlerWithBody<z.infer<typeof userSignupBody>> = async (req, res) => {
+const signupHandler: RequestHandlerWithBody<z.infer<typeof userSignupRequestBody>> = async (req, res) => {
   const hashedPassword = await bcrypt.hash(req.body.password, SALT_ROUNDS);
 
   const {data: user, error: userError} = await tryCatch(prisma.user.create({
@@ -50,7 +54,7 @@ const signupHandler: RequestHandlerWithBody<z.infer<typeof userSignupBody>> = as
   res.status(StatusCodes.OK).json(tokens);
 }
 
-const loginHandler: RequestHandlerWithBody<z.infer<typeof userLoginBody>> = async (req, res) => {
+const loginHandler: RequestHandlerWithBody<z.infer<typeof userLoginRequestBody>> = async (req, res) => {
   const {data: user, error: userError} = await tryCatch(prisma.user.findUnique({where: {email: req.body.email}}));
 
   if (userError) {
@@ -89,12 +93,29 @@ const loginHandler: RequestHandlerWithBody<z.infer<typeof userLoginBody>> = asyn
   res.status(StatusCodes.OK).json(tokens)
 }
 
+const refreshTokenHandler: RequestHandlerWithBody<z.infer<typeof refreshTokenRequestBody>> = async (req, res) => {
+  const tokens = await verifyAndRegenerateRefreshToken(req.body.refreshToken)
+
+  if (!tokens) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Could not generate new tokens",
+    });
+  }
+
+  res.status(StatusCodes.OK).json(tokens);
+}
+
 export const signupHandlers: RequestHandler[] = [
-  validateData(userSignupBody),
+  validateData(userSignupRequestBody),
   signupHandler
 ];
 
 export const loginHandlers: RequestHandler[] = [
-  validateData(userLoginBody),
+  validateData(userLoginRequestBody),
   loginHandler
+];
+
+export const refreshHandlers: RequestHandler[] = [
+  validateData(refreshTokenRequestBody),
+  refreshTokenHandler
 ];
